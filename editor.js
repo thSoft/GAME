@@ -51,13 +51,16 @@ function getEditor(rule, dataSnapshot, editorStateSnapshot) {
                 result.contentEditable = "true";
                 $(result).keyup(function (event) {
                     if (event.keyCode == enterKey) {
-                        dataSnapshot.reference().child(valueProperty).set(literal.fromString(result.textContent));
+                        changeLiteral(dataSnapshot, literal, result);
                     }
                 });
                 $(result).focus(function (_) {
                     if (!isSelected(dataSnapshot, editorStateSnapshot)) {
                         setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
                     }
+                });
+                $(result).blur(function (_) {
+                    changeLiteral(dataSnapshot, literal, result);
                 });
                 return result;
             },
@@ -189,8 +192,11 @@ function getEditor(rule, dataSnapshot, editorStateSnapshot) {
         setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
         event.stopPropagation();
     });
-    result.tabIndex = 0;
     return result;
+}
+
+function changeLiteral(dataSnapshot, literal, editor) {
+    dataSnapshot.reference().child(valueProperty).set(literal.fromString(editor.textContent));
 }
 
 var selectedClass = "selected";

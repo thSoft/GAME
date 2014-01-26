@@ -50,13 +50,16 @@ function getEditor(rule: Rule, dataSnapshot: DataSnapshot, editorStateSnapshot: 
 				result.contentEditable = "true";
 				$(result).keyup(event => {
 					if (event.keyCode == enterKey) {
-						dataSnapshot.reference().child(valueProperty).set(literal.fromString(result.textContent));
+						changeLiteral(dataSnapshot, literal, result);
 					}
 				});
 				$(result).focus(_ => {
 					if (!isSelected(dataSnapshot, editorStateSnapshot)) {
 						setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
 					}
+				});
+				$(result).blur(_ => {
+					changeLiteral(dataSnapshot, literal, result);
 				});
 				return result;
 			},
@@ -180,8 +183,11 @@ function getEditor(rule: Rule, dataSnapshot: DataSnapshot, editorStateSnapshot: 
 		setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
 		event.stopPropagation();
 	});
-	result.tabIndex = 0;
 	return result;
+}
+
+function changeLiteral(dataSnapshot: DataSnapshot, literal: Literal<any>, editor: HTMLElement) {
+	dataSnapshot.reference().child(valueProperty).set(literal.fromString(editor.textContent));
 }
 
 var selectedClass = "selected";
