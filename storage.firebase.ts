@@ -20,6 +20,10 @@ class FirebaseReference implements DataReference {
 	parent() {
 		return new FirebaseReference(this.firebase.parent());
 	}
+	
+	root() {
+		return new FirebaseReference(this.firebase.root());
+	}	
 
 	child(name) {
 		return new FirebaseReference(this.firebase.child(name));
@@ -45,7 +49,7 @@ class FirebaseSnapshot implements DataSnapshot {
 	}
 
 	referenceAt(url) {
-		return new FirebaseReference(new Firebase(url));
+		return ((url == null) || (url == "")) ? this.reference().root() : new FirebaseReference(new Firebase(url));
 	}
 
 }

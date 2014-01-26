@@ -38,6 +38,10 @@ var LocalStorageReference = (function () {
         return this.path.length > 1 ? new LocalStorageReference(this.path.slice(0, this.path.length - 1)) : null;
     };
 
+    LocalStorageReference.prototype.root = function () {
+        return new LocalStorageReference(this.path.slice(0, 1));
+    };
+
     LocalStorageReference.prototype.child = function (name) {
         return new LocalStorageReference(this.path.concat([name]));
     };

@@ -258,7 +258,8 @@ function isSame(ref1, ref2) {
 }
 
 function getSelectedRef(editorStateSnapshot) {
-    return editorStateSnapshot.referenceAt(editorStateSnapshot.child(selectedUrlId).value());
+    var selectedUrl = editorStateSnapshot.child(selectedUrlId).value();
+    return editorStateSnapshot.referenceAt(selectedUrl);
 }
 
 var selectedUrlId = "selectedUrl";

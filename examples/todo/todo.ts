@@ -54,7 +54,7 @@ class BooleanRule extends Choice {
 	}
 }
 
-var rootRef = new FirebaseReference(new Firebase('https://thsoft.firebaseio-demo.com/game'));
+var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game"));
 //var rootRef = new LocalStorageReference(['https://thsoft.firebaseio-demo.com/game']);
 
 $(document).ready(_ => {

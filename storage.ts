@@ -3,6 +3,7 @@ interface DataReference {
 	changed(handler: (snapshot: DataSnapshot) => void): void;
 	set(value: any, onComplete?: (error: any) => void): void;
 	parent(): DataReference;
+	root(): DataReference;
 	child(name: string): DataReference;
 }
 

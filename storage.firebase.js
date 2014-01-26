@@ -20,6 +20,10 @@ var FirebaseReference = (function () {
         return new FirebaseReference(this.firebase.parent());
     };
 
+    FirebaseReference.prototype.root = function () {
+        return new FirebaseReference(this.firebase.root());
+    };
+
     FirebaseReference.prototype.child = function (name) {
         return new FirebaseReference(this.firebase.child(name));
     };
@@ -43,7 +47,7 @@ var FirebaseSnapshot = (function () {
     };
 
     FirebaseSnapshot.prototype.referenceAt = function (url) {
-        return new FirebaseReference(new Firebase(url));
+        return ((url == null) || (url == "")) ? this.reference().root() : new FirebaseReference(new Firebase(url));
     };
     return FirebaseSnapshot;
 })();

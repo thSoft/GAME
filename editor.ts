@@ -237,7 +237,8 @@ function isSame(ref1: DataReference, ref2: DataReference): boolean {
 }
 
 function getSelectedRef(editorStateSnapshot: DataSnapshot): DataReference {
-	return editorStateSnapshot.referenceAt(editorStateSnapshot.child(selectedUrlId).value());
+	var selectedUrl = editorStateSnapshot.child(selectedUrlId).value();
+	return editorStateSnapshot.referenceAt(selectedUrl);
 }
 
 var selectedUrlId = "selectedUrl";

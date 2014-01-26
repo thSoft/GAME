@@ -36,6 +36,10 @@ class LocalStorageReference implements DataReference {
 		return this.path.length > 1 ? new LocalStorageReference(this.path.slice(0, this.path.length - 1)) : null;
 	}
 
+	root() {
+		return new LocalStorageReference(this.path.slice(0, 1));
+	}
+
 	child(name) {
 		return new LocalStorageReference(this.path.concat([name]));
 	}
