@@ -25,7 +25,7 @@ function bindEditor(elementId, rule, rootRef, userId) {
 var dataId = "data";
 var editorStateId = "editorState";
 
-var enterKey = 13;
+var enterKeyCode = 13;
 
 function getEditor(rule, dataSnapshot, editorStateSnapshot) {
     var data = dataSnapshot.value();
@@ -50,7 +50,7 @@ function getEditor(rule, dataSnapshot, editorStateSnapshot) {
                 // Edit
                 result.contentEditable = "true";
                 $(result).keyup(function (event) {
-                    if (event.keyCode == enterKey) {
+                    if (event.keyCode == enterKeyCode) {
                         changeLiteral(dataSnapshot, literal, result);
                     }
                 });
@@ -134,18 +134,14 @@ function getEditor(rule, dataSnapshot, editorStateSnapshot) {
                         var elementSnapshot = dataSnapshot.child(i.toString());
                         result.appendChild(getEditor(list.elementRule, elementSnapshot, editorStateSnapshot));
                         result.appendChild(document.createTextNode(list.separator));
-                        if (isSelected(elementSnapshot, editorStateSnapshot)) {
-                            bindKeyDown(insertAfterKey, function (_) {
-                                var newElement = generate(list.elementRule);
-                                var index = i + 1;
-                                var newArray = insertElement(dataArray, newElement, index);
-                                dataSnapshot.reference().set(newArray);
-                                setSelectedRef(editorStateSnapshot, dataSnapshot.child(index.toString()).reference());
-                            });
-                        }
                     }
                 } else {
-                    result.appendChild(document.createTextNode("(no " + owl.pluralize(list.elementRule.name) + ")"));
+                    result.appendChild(document.createTextNode("(no " + owl.pluralize(list.elementRule.name) + ", "));
+                    var addOne = document.createElement("a");
+                    addOne.href = "javascript:void(0)";
+                    addOne.appendChild(document.createTextNode("add one"));
+                    result.appendChild(addOne);
+                    result.appendChild(document.createTextNode(")"));
                 }
                 applyTooltip(result, list);
 
@@ -166,14 +162,27 @@ function getEditor(rule, dataSnapshot, editorStateSnapshot) {
                         var newArray = removeElements(dataArray, i);
                         dataSnapshot.reference().set(newArray);
                     });
-                }
-                if ((dataArray.length == 0) && isSelected(dataSnapshot, editorStateSnapshot)) {
-                    bindKeyDown(selectFirstChildKey, function (_) {
+                    bindKeyDown(insertAfterKey, function (_) {
                         var newElement = generate(list.elementRule);
-                        var newArray = dataArray.concat([newElement]);
-                        dataSnapshot.reference().set(newArray);
+                        var index = i + 1;
+                        var newArray = insertElement(dataArray, newElement, index);
+                        dataSnapshot.reference().set(newArray, function (_) {
+                            setSelectedRef(editorStateSnapshot, dataSnapshot.child(index.toString()).reference());
+                        });
+                    });
+                }
+                var addChild = function (_) {
+                    var newElement = generate(list.elementRule);
+                    var newArray = dataArray.concat([newElement]);
+                    dataSnapshot.reference().set(newArray, function (_) {
                         setSelectedRef(editorStateSnapshot, dataSnapshot.child("0").reference());
                     });
+                };
+                if (addOne != null) {
+                    $(addOne).click(addChild);
+                }
+                if ((dataArray.length == 0) && isSelected(dataSnapshot, editorStateSnapshot)) {
+                    bindKeyDown(selectFirstChildKey, addChild);
                 }
                 return result;
             }
