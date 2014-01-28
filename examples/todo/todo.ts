@@ -58,7 +58,7 @@ var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo
 //var rootRef = new LocalStorageReference(['https://thsoft.firebaseio-demo.com/game']);
 
 $(document).ready(_ => {
-	bindEditor("editor", new TodoListRule(), rootRef, "thSoft");
+	bindEditor(document.getElementById("editor"), new TodoListRule(), rootRef, "thSoft");
 });
 
 function resetData() {

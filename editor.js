@@ -1,4 +1,4 @@
-function bindEditor(elementId, rule, rootRef, userId) {
+function bindEditor(element, rule, rootRef, userId) {
     rootRef.changed(function (snapshot) {
         [selectFirstChildKey, deleteKey, insertAfterKey].concat(selectNextElementKeys).concat(selectPreviousElementKeys).forEach(function (keyCombo) {
             KeyboardJS.clear(keyCombo);
@@ -7,8 +7,7 @@ function bindEditor(elementId, rule, rootRef, userId) {
         var dataSnapshot = snapshot.child(dataId);
         var editorStateSnapshot = snapshot.child(editorStateId).child(userId);
         var editor = getEditor(rule, dataSnapshot, editorStateSnapshot);
-        editor.setAttribute("id", elementId);
-        document.body.replaceChild(editor, document.getElementById(elementId));
+        document.body.replaceChild(editor, element);
 
         $("[contenteditable='true']." + selectedClass).focus();
 
