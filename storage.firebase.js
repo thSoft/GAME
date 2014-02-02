@@ -6,48 +6,32 @@ var FirebaseReference = (function () {
         return this.firebase.toString();
     };
 
+    FirebaseReference.prototype.find = function (url) {
+        return new FirebaseReference(new Firebase(url));
+    };
+
     FirebaseReference.prototype.changed = function (handler) {
-        this.firebase.on("value", function (snapshot) {
-            handler(new FirebaseSnapshot(snapshot));
-        });
+        var callback = function (snapshot) {
+            handler(snapshot.val());
+        };
+        this.firebase.on("value", callback);
+        return {
+            unsubscribe: function () {
+                this.firebase.off("value", callback);
+            }
+        };
     };
 
-    FirebaseReference.prototype.set = function (value, onComplete) {
-        this.firebase.set(value, onComplete);
+    FirebaseReference.prototype.set = function (value, completed) {
+        this.firebase.set(value, completed);
     };
 
-    FirebaseReference.prototype.parent = function () {
-        return new FirebaseReference(this.firebase.parent());
+    FirebaseReference.prototype.insert = function (value, completed) {
+        return new FirebaseReference(this.firebase.parent().push(value, completed));
     };
 
-    FirebaseReference.prototype.root = function () {
-        return new FirebaseReference(this.firebase.root());
-    };
-
-    FirebaseReference.prototype.child = function (name) {
-        return new FirebaseReference(this.firebase.child(name));
+    FirebaseReference.prototype.remove = function (completed) {
+        this.firebase.remove(completed);
     };
     return FirebaseReference;
-})();
-
-var FirebaseSnapshot = (function () {
-    function FirebaseSnapshot(snapshot) {
-        this.snapshot = snapshot;
-    }
-    FirebaseSnapshot.prototype.value = function () {
-        return this.snapshot.val();
-    };
-
-    FirebaseSnapshot.prototype.reference = function () {
-        return new FirebaseReference(this.snapshot.ref());
-    };
-
-    FirebaseSnapshot.prototype.child = function (name) {
-        return new FirebaseSnapshot(this.snapshot.child(name));
-    };
-
-    FirebaseSnapshot.prototype.referenceAt = function (url) {
-        return ((url == null) || (url == "")) ? this.reference().root() : new FirebaseReference(new Firebase(url));
-    };
-    return FirebaseSnapshot;
 })();

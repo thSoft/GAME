@@ -1,15 +1,12 @@
 interface DataReference {
 	url(): string;
-	changed(handler: (snapshot: DataSnapshot) => void): void;
-	set(value: any, onComplete?: (error: any) => void): void;
-	parent(): DataReference;
-	root(): DataReference;
-	child(name: string): DataReference;
+	find(url: string): DataReference;
+	changed(handler: (value: any) => void): Subscription;
+	set(value: any, completed?: (error: any) => void): void;
+	insert(value: any, completed?: (error: any) => void): DataReference;
+	remove(completed?: (error: any) => void): void;
 }
 
-interface DataSnapshot {
-	value(): any;
-	reference(): DataReference;
-	child(name: string): DataSnapshot;
-	referenceAt(url: string);
+interface Subscription {
+	unsubscribe(): void;
 }

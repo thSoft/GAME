@@ -1,12 +1,17 @@
 class TodoListRule extends List {
 	constructor() {
-		super("TODO list", new AgendaItemRule(), "\n");
+		super(
+			"http://example.com/TodoList",
+			"TODO list",
+			new AgendaItemRule(),
+			"\n");
 	}
 }
 
 class AgendaItemRule extends Choice {
 	constructor() {
 		super(
+			"http://example.com/AgendaItem", 
 			"Agenda Item",
 			() => [
 				new TaskRule(),
@@ -19,6 +24,7 @@ class AgendaItemRule extends Choice {
 class TaskRule extends Record {
 	constructor() {
 		super(
+			"http://example.com/Task", 
 			"Task",
 			() => [
 				new TextSegment("Task: "),
@@ -33,6 +39,7 @@ class TaskRule extends Record {
 class EventRule extends Record {
 	constructor() {
 		super(
+			"http://example.com/Event",
 			"Event",
 			() => [
 				new TextSegment("Event: "),
@@ -45,20 +52,23 @@ class EventRule extends Record {
 class BooleanRule extends Choice {
 	constructor() {
 		super(
+			"http://example.com/Boolean",
 			"Boolean",
 			() => [
-				new Keyword("false"),
-				new Keyword("true")
+				new Keyword("http://example.com/Boolean/false", "false"),
+				new Keyword("http://example.com/Boolean/true", "true")
 			]
 		);
 	}
 }
 
-var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game"));
-//var rootRef = new LocalStorageReference(['https://thsoft.firebaseio-demo.com/game']);
+var key = "TodoList";
+//var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game/" + key));
+var rootRef = new LocalStorageReference(key);
 
 $(document).ready(_ => {
-	bindEditor(document.getElementById("editor"), new TodoListRule(), rootRef, "thSoft");
+	var editor = getEditor(rootRef, new TodoListRule);
+	React.renderComponent(editor, document.body);
 });
 
 function resetData() {
@@ -79,5 +89,4 @@ function resetData() {
 			}
 		}
 	];
-	rootRef.child(dataId).set({});
 }

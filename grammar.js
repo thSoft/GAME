@@ -1,5 +1,6 @@
 var Keyword = (function () {
-    function Keyword(name) {
+    function Keyword(url, name) {
+        this.url = url;
         this.name = name;
     }
     Keyword.prototype.match = function (cases) {
@@ -11,7 +12,8 @@ var Keyword = (function () {
 // Input field
 // + custom editing mechanism
 var Literal = (function () {
-    function Literal(name, fromString, toString, view, defaultValue) {
+    function Literal(url, name, fromString, toString, view, defaultValue) {
+        this.url = url;
         this.name = name;
         this.fromString = fromString;
         this.toString = toString;
@@ -32,7 +34,8 @@ var valueProperty = "value";
 // Insert/Shift+Insert: insert after/before element
 // Backspace/Delete: delete element
 var List = (function () {
-    function List(name, elementRule, separator) {
+    function List(url, name, elementRule, separator) {
+        this.url = url;
         this.name = name;
         this.elementRule = elementRule;
         this.separator = separator;
@@ -45,7 +48,8 @@ var List = (function () {
 
 // Incremental search in options
 var Choice = (function () {
-    function Choice(name, options) {
+    function Choice(url, name, options) {
+        this.url = url;
         this.name = name;
         this.options = options;
     }
@@ -59,7 +63,8 @@ var ruleProperty = "rule";
 
 // Tab/Shift+Tab: next/previous RuleSegment segment
 var Record = (function () {
-    function Record(name, segments) {
+    function Record(url, name, segments) {
+        this.url = url;
         this.name = name;
         this.segments = segments;
     }

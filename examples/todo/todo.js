@@ -7,7 +7,7 @@ var __extends = this.__extends || function (d, b) {
 var TodoListRule = (function (_super) {
     __extends(TodoListRule, _super);
     function TodoListRule() {
-        _super.call(this, "TODO list", new AgendaItemRule(), "\n");
+        _super.call(this, "http://example.com/TodoList", "TODO list", new AgendaItemRule(), "\n");
     }
     return TodoListRule;
 })(List);
@@ -15,7 +15,7 @@ var TodoListRule = (function (_super) {
 var AgendaItemRule = (function (_super) {
     __extends(AgendaItemRule, _super);
     function AgendaItemRule() {
-        _super.call(this, "Agenda Item", function () {
+        _super.call(this, "http://example.com/AgendaItem", "Agenda Item", function () {
             return [
                 new TaskRule(),
                 new EventRule()
@@ -28,7 +28,7 @@ var AgendaItemRule = (function (_super) {
 var TaskRule = (function (_super) {
     __extends(TaskRule, _super);
     function TaskRule() {
-        _super.call(this, "Task", function () {
+        _super.call(this, "http://example.com/Task", "Task", function () {
             return [
                 new TextSegment("Task: "),
                 new RuleSegment(new StringRule(), "description"),
@@ -43,7 +43,7 @@ var TaskRule = (function (_super) {
 var EventRule = (function (_super) {
     __extends(EventRule, _super);
     function EventRule() {
-        _super.call(this, "Event", function () {
+        _super.call(this, "http://example.com/Event", "Event", function () {
             return [
                 new TextSegment("Event: "),
                 new RuleSegment(new StringRule(), "description")
@@ -56,21 +56,24 @@ var EventRule = (function (_super) {
 var BooleanRule = (function (_super) {
     __extends(BooleanRule, _super);
     function BooleanRule() {
-        _super.call(this, "Boolean", function () {
+        _super.call(this, "http://example.com/Boolean", "Boolean", function () {
             return [
-                new Keyword("false"),
-                new Keyword("true")
+                new Keyword("http://example.com/Boolean/false", "false"),
+                new Keyword("http://example.com/Boolean/true", "true")
             ];
         });
     }
     return BooleanRule;
 })(Choice);
 
-var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game"));
+var key = "TodoList";
 
-//var rootRef = new LocalStorageReference(['https://thsoft.firebaseio-demo.com/game']);
+//var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game/" + key));
+var rootRef = new LocalStorageReference(key);
+
 $(document).ready(function (_) {
-    bindEditor(document.getElementById("editor"), new TodoListRule(), rootRef, "thSoft");
+    var editor = getEditor(rootRef, new TodoListRule);
+    React.renderComponent(editor, document.body);
 });
 
 function resetData() {
@@ -91,5 +94,4 @@ function resetData() {
             }
         }
     ];
-    rootRef.child(dataId).set({});
 }

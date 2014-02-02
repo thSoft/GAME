@@ -17,3 +17,26 @@ function containsElement<T>(array: T[], element: T): boolean {
 function contains(s: string, substring: string): boolean {
 	return s.indexOf(substring) != -1;
 }
+
+function mergeProperties(o1: Object, o2: Object): Object {
+	var result = {};
+	copyProperties(o1, result);
+	copyProperties(o2, result);
+	return result;
+}
+
+function copyProperties(source: Object, target: Object): void {
+	if (source != null) {
+		for (var key in source) {
+			if (source.hasOwnProperty(key)) {
+				target[key] = source[key];
+			}
+		}
+	}
+}
+
+function toObject(array: Object): Object {
+	var result = {};
+	copyProperties(array, result);
+	return result;
+}

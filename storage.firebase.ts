@@ -3,53 +3,36 @@ class FirebaseReference implements DataReference {
 	constructor(private firebase: Firebase) {
 	}
 
-	url() {
+	url(): string {
 		return this.firebase.toString();
 	}
-
-	changed(handler) {
-		this.firebase.on("value", snapshot => {
-			handler(new FirebaseSnapshot(snapshot));
-		});
-	}
-
-	set(value, onComplete?) {
-		this.firebase.set(value, onComplete);
-	}
-
-	parent() {
-		return new FirebaseReference(this.firebase.parent());
+	
+	find(url: string): DataReference {
+		return new FirebaseReference(new Firebase(url));
 	}
 	
-	root() {
-		return new FirebaseReference(this.firebase.root());
-	}	
-
-	child(name) {
-		return new FirebaseReference(this.firebase.child(name));
+	changed(handler: (value: any) => void): Subscription {
+		var callback = (snapshot: IFirebaseDataSnapshot) => {
+			handler(snapshot.val());
+		};
+		this.firebase.on("value", callback);
+		return {
+			unsubscribe(): void {
+				this.firebase.off("value", callback);
+			}
+		};
 	}
 
-}
-
-class FirebaseSnapshot implements DataSnapshot {
-
-	constructor(private snapshot: IFirebaseDataSnapshot) {
+	set(value: any, completed?: (error: any) => void): void {
+		this.firebase.set(value, completed);
+	}
+	
+	insert(value: any, completed?: (error: any) => void): DataReference {
+		return new FirebaseReference(this.firebase.parent().push(value, completed));
 	}
 
-	value() {
-		return this.snapshot.val();
-	}
-
-	reference() {
-		return new FirebaseReference(this.snapshot.ref());
-	}
-
-	child(name) {
-		return new FirebaseSnapshot(this.snapshot.child(name));
-	}
-
-	referenceAt(url) {
-		return ((url == null) || (url == "")) ? this.reference().root() : new FirebaseReference(new Firebase(url));
+	remove(completed?: (error: any) => void): void {
+		this.firebase.remove(completed);
 	}
 
 }

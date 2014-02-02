@@ -18,3 +18,26 @@ function containsElement(array, element) {
 function contains(s, substring) {
     return s.indexOf(substring) != -1;
 }
+
+function mergeProperties(o1, o2) {
+    var result = {};
+    copyProperties(o1, result);
+    copyProperties(o2, result);
+    return result;
+}
+
+function copyProperties(source, target) {
+    if (source != null) {
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+                target[key] = source[key];
+            }
+        }
+    }
+}
+
+function toObject(array) {
+    var result = {};
+    copyProperties(array, result);
+    return result;
+}

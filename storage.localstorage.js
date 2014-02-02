@@ -1,71 +1,73 @@
 var LocalStorageReference = (function () {
-    function LocalStorageReference(path) {
-        this.path = path;
+    function LocalStorageReference(key) {
+        this.key = key;
     }
     LocalStorageReference.prototype.url = function () {
-        return this.path.join("/");
+        return this.key;
+    };
+
+    LocalStorageReference.prototype.find = function (url) {
+        return new LocalStorageReference(url);
     };
 
     LocalStorageReference.prototype.changed = function (handler) {
         var _this = this;
-        window.addEventListener("storage", function (event) {
-            handler(new LocalStorageSnapshot(_this.path));
-        });
-        handler(new LocalStorageSnapshot(this.path));
+        var currentValue = this.parse(localStorage[this.key]);
+        handler(currentValue);
+        var listener = function (event) {
+            if (event.key == _this.key) {
+                handler(_this.parse(event.newValue));
+            }
+        };
+        window.addEventListener("storage", listener);
+        return {
+            unsubscribe: function () {
+                window.removeEventListener("storage", listener);
+            }
+        };
     };
 
-    LocalStorageReference.prototype.set = function (value, onComplete) {
-        var _this = this;
+    LocalStorageReference.prototype.parse = function (text) {
+        return (text == undefined) || (text == null) || (text == "") ? null : JSON.parse(text);
+    };
+
+    LocalStorageReference.prototype.set = function (value, completed) {
+        localStorage[this.key] = JSON.stringify(value);
+        this.callCompleted(completed, null);
+    };
+
+    LocalStorageReference.prototype.callCompleted = function (completed, error) {
+        if (completed != null) {
+            completed(error);
+        }
+    };
+
+    LocalStorageReference.prototype.insert = function (value, completed) {
+        if (localStorage.remainingSpace <= 0) {
+            this.callCompleted(completed, "No more storage");
+            return null;
+        }
+        do {
+            var keyNumber = Math.random() * Number.MAX_VALUE;
+            var keyString = keyNumber.toString(26);
+        } while(this.isOccupied(keyString));
+        var result = new LocalStorageReference(keyString);
+        result.set(value, completed);
+        return result;
+    };
+
+    LocalStorageReference.prototype.isOccupied = function (key) {
         for (var i = 0; i < localStorage.length; i++) {
-            var url = localStorage.key(i);
-            if (url.indexOf(this.url()) == 0) {
-                localStorage.removeItem(url);
+            if (localStorage.key(i) == key) {
+                return true;
             }
         }
-
-        // Store new children
-        if (value instanceof Object) {
-            Object.keys(value).forEach(function (propertyName) {
-                new LocalStorageReference(_this.path.concat([propertyName])).set(value[propertyName]);
-            });
-        }
-
-        // Store value
-        localStorage[this.url()] = value;
+        return false;
     };
 
-    LocalStorageReference.prototype.parent = function () {
-        return this.path.length > 1 ? new LocalStorageReference(this.path.slice(0, this.path.length - 1)) : null;
-    };
-
-    LocalStorageReference.prototype.root = function () {
-        return new LocalStorageReference(this.path.slice(0, 1));
-    };
-
-    LocalStorageReference.prototype.child = function (name) {
-        return new LocalStorageReference(this.path.concat([name]));
+    LocalStorageReference.prototype.remove = function (completed) {
+        localStorage.removeItem(this.key);
+        this.callCompleted(completed, null);
     };
     return LocalStorageReference;
-})();
-
-var LocalStorageSnapshot = (function () {
-    function LocalStorageSnapshot(path) {
-        this.path = path;
-    }
-    LocalStorageSnapshot.prototype.value = function () {
-        return localStorage[this.reference().url()];
-    };
-
-    LocalStorageSnapshot.prototype.reference = function () {
-        return new LocalStorageReference(this.path);
-    };
-
-    LocalStorageSnapshot.prototype.child = function (name) {
-        return new LocalStorageSnapshot(this.path.concat([name]));
-    };
-
-    LocalStorageSnapshot.prototype.referenceAt = function (url) {
-        return new LocalStorageSnapshot(url.split("/"));
-    };
-    return LocalStorageSnapshot;
 })();

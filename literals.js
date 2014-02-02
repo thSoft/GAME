@@ -7,7 +7,7 @@ var __extends = this.__extends || function (d, b) {
 var StringRule = (function (_super) {
     __extends(StringRule, _super);
     function StringRule() {
-        _super.call(this, "String", function (data) {
+        _super.call(this, "http://example.com/String", "String", function (data) {
             return data == null ? "" : data.toString();
         }, function (value) {
             return value;
@@ -21,7 +21,7 @@ var StringRule = (function (_super) {
 var IntegerRule = (function (_super) {
     __extends(IntegerRule, _super);
     function IntegerRule() {
-        _super.call(this, "Integer", function (data) {
+        _super.call(this, "http://example.com/Integer", "Integer", function (data) {
             var result = parseInt(data);
             return isNaN(result) ? null : result;
         }, function (value) {

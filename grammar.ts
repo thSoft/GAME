@@ -1,5 +1,6 @@
 interface Rule {
 	match<T>(cases: RuleCases<T>): T;
+	url: string;
 	name: string;
 }
 
@@ -13,7 +14,9 @@ interface RuleCases<T> {
 
 class Keyword implements Rule {
 
-	constructor(public name: string) {
+	constructor(
+		public url: string,
+		public name: string) {
 	}
 
 	match<T>(cases: RuleCases<T>): T {
@@ -27,6 +30,7 @@ class Keyword implements Rule {
 class Literal<V> implements Rule {
 
 	constructor(
+		public url: string,
 		public name: string,
 		public fromString: (data: string) => V,
 		public toString: (value: V) => string,
@@ -40,6 +44,10 @@ class Literal<V> implements Rule {
 
 }
 
+interface LiteralData<V> {
+	value: V;
+}
+
 var valueProperty = "value";
 
 // Enter: first child block
@@ -51,6 +59,7 @@ var valueProperty = "value";
 class List implements Rule {
 
 	constructor(
+		public url: string,
 		public name: string,
 		public elementRule: Rule,
 		public separator: string) {
@@ -66,6 +75,7 @@ class List implements Rule {
 class Choice implements Rule {
 
 	constructor(
+		public url: string,
 		public name: string,
 		public options: () => Rule[]) {
 	}
@@ -76,12 +86,17 @@ class Choice implements Rule {
 
 }
 
+interface ChoiceData {
+	ruleUrl: string
+}
+
 var ruleProperty = "rule";
 
 // Tab/Shift+Tab: next/previous RuleSegment segment
 class Record implements Rule {
 
 	constructor(
+		public url: string,
 		public name: string,
 		public segments: () => RecordSegment[]) {
 	}

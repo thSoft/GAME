@@ -1,229 +1,181 @@
-function bindEditor(element: HTMLElement, rule: Rule, rootRef: DataReference, userId: string): void {
-	rootRef.changed(snapshot => {
-		[selectFirstChildKey, deleteKey, insertAfterKey].concat(selectNextElementKeys).concat(selectPreviousElementKeys).forEach(keyCombo => {
-			KeyboardJS.clear(keyCombo);
-		});
-
-		var dataSnapshot = snapshot.child(dataId);
-		var editorStateSnapshot = snapshot.child(editorStateId).child(userId);
-		var editor = getEditor(rule, dataSnapshot, editorStateSnapshot);
-		document.body.replaceChild(editor, element);
-		
-		$("[contenteditable='true']." + selectedClass).focus();
-
-		var dataRootRef = dataSnapshot.reference();
-		bindKeyDown(selectParentKey, () => {
-			selectParent(editorStateSnapshot, dataRootRef);
-		});
-		bindKeyDown(selectRootKey, () => {
-			setSelectedRef(editorStateSnapshot, dataRootRef);
-		});
+function getEditor(dataRef: DataReference, rule: Rule): React.ReactComponent<any, any> {
+	return rule.match({
+		keyword: keyword => getKeywordEditor(dataRef, keyword),
+		literal: literal => getLiteralEditor(dataRef, literal),
+		choice: choice => getChoiceEditor(dataRef, choice),
+		record: record => getRecordEditor(dataRef, record),
+		list: list => getListEditor(dataRef, list)
 	});
 }
 
-var dataId = "data";
-var editorStateId = "editorState";
+function getKeywordEditor(dataRef: DataReference, keyword: Keyword): React.ReactComponent<any, Object> {
+	return React.createClass({
 
-var enterKeyCode = 13;
-
-function getEditor(rule: Rule, dataSnapshot: DataSnapshot, editorStateSnapshot: DataSnapshot): HTMLElement {
-	var data = dataSnapshot.value();
-	var result;
-	if (check(rule, data)) {
-		result = rule.match({
-			keyword: keyword => {
-				var result = document.createElement("span");
-				var value = keyword.name;
-				result.appendChild(document.createTextNode(value));
-				applyTooltip(result, keyword);
-				return result;
-			},
-			literal: literal => {
-				// Display
-				var result = document.createElement("span");
-				var value = data[valueProperty];
-				result.appendChild(literal.view(value));
-				$(result).addClass("literal");
-				applyTooltip(result, literal);
-				// Edit
-				result.contentEditable = "true";
-				$(result).keyup(event => {
-					if (event.keyCode == enterKeyCode) {
-						changeLiteral(dataSnapshot, literal, result);
-					}
-				});
-				$(result).focus(_ => {
-					if (!isSelected(dataSnapshot, editorStateSnapshot)) {
-						setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
-					}
-				});
-				$(result).blur(_ => {
-					changeLiteral(dataSnapshot, literal, result);
-				});
-				return result;
-			},
-			record: record => {
-				// Display
-				var result = document.createElement("span");
-				record.segments().forEach(segment => {
-					segment.match({
-						textSegment: textSegment => {
-							result.appendChild(document.createTextNode(textSegment.text));
-						},
-						ruleSegment: ruleSegment => {
-							var fieldSnapshot = dataSnapshot.child(ruleSegment.fieldName);
-							result.appendChild(getEditor(ruleSegment.rule, fieldSnapshot, editorStateSnapshot));
-						}
-					});
-				});
-				applyTooltip(result, record);
-				// Navigate
-				var fieldNames = record.segments().filter(segment => segment instanceof RuleSegment).map(segment => (<RuleSegment>segment).fieldName);
-				bindNavigation(dataSnapshot, editorStateSnapshot, fieldNames);
-				return result;
-			},
-			choice: choice => {
-				// Display
-				var rule = findRuleNamed(choice, data[ruleProperty]);
-				var result = getEditor(rule, dataSnapshot, editorStateSnapshot);
-				result.title = result.title + " (" + choice.name + ")";
-				$(result).addClass("choice");
-				// Edit
-				if (isSelected(dataSnapshot, editorStateSnapshot)) {
-					var optionList = document.createElement("select");
-					updateOptions(dataSnapshot, choice, optionList);
-					result.appendChild(optionList);
-					$(optionList).chosen({
-						width: "100%",
-						search_contains: true
-					});
-					$(optionList).change(event => {
-						var selectedRule = findRuleNamed(choice, optionList.value);
-						var newObject = generate(selectedRule);
-						setRule(newObject, selectedRule);
-						dataSnapshot.reference().set(newObject);
-					});
-					$(document).keydown(_ => {
-						$(optionList).trigger("chosen:activate");
-					});
-					$(result).dblclick(_ => {
-						$(optionList).trigger("chosen:open");
-					});
-				}
-				return result;
-			},
-			list: list => {
-				// Display
-				var result = document.createElement("span");
-				var dataArray = [];
-				for (var key in data) {
-					if (!isNaN(parseInt(key))) {
-						dataArray.push(data[key]);
-					}
-				}
-				if (dataArray.length > 0) {
-					for (var i = 0; i < dataArray.length; i++) {
-						var elementSnapshot = dataSnapshot.child(i.toString());
-						result.appendChild(getEditor(list.elementRule, elementSnapshot, editorStateSnapshot));
-						result.appendChild(document.createTextNode(list.separator));
-					}
-				} else {
-					result.appendChild(document.createTextNode("(no " + owl.pluralize(list.elementRule.name) + ", "));
-					var addOne = document.createElement("a");
-					addOne.href = "javascript:void(0)";
-					addOne.appendChild(document.createTextNode("add one"));
-					result.appendChild(addOne);
-					result.appendChild(document.createTextNode(")"));
-				}
-				applyTooltip(result, list);
-				// Navigate
-				bindNavigation(dataSnapshot, editorStateSnapshot, Object.keys(dataArray));
-				// Edit
-				var i = 0;
-				while (i < dataArray.length) {
-					var elementSnapshot = dataSnapshot.child(i.toString());
-					if (isSelected(elementSnapshot, editorStateSnapshot)) {
-						break;
-					}
-					i++;
-				}
-				if (i < dataArray.length) {
-					bindKeyDown(deleteKey, () => {
-						var newArray = removeElements(dataArray, i);
-						dataSnapshot.reference().set(newArray);
-					});
-					bindKeyDown(insertAfterKey, _ => {
-						var newElement = generate(list.elementRule);
-						var index = i + 1;
-						var newArray = insertElement(dataArray, newElement, index);
-						dataSnapshot.reference().set(newArray, _ => {
-							setSelectedRef(editorStateSnapshot, dataSnapshot.child(index.toString()).reference());
-						});
-					});
-				}
-				var addChild = _ => {
-					var newElement = generate(list.elementRule);
-					var newArray = dataArray.concat([newElement]);
-					dataSnapshot.reference().set(newArray, _ => {
-						setSelectedRef(editorStateSnapshot, dataSnapshot.child("0").reference());
-					});
-				};
-				if (addOne != null) {
-					$(addOne).click(addChild);
-				}
-				if ((dataArray.length == 0) && isSelected(dataSnapshot, editorStateSnapshot)) {
-					bindKeyDown(selectFirstChildKey, addChild);
-				}
-				return result;
-			}
-		});
-	} else {
-		result = document.createElement("span");
-		result.title = "Error: expected " + getDescription(rule);
-		result.appendChild(document.createTextNode(data));
-		$(result).addClass("error");
-	}
-	$(result).addClass("game-editor");
-	if (isSelected(dataSnapshot, editorStateSnapshot)) {
-		$(result).addClass(selectedClass);
-	}
-	$(result).click(event => {
-		setSelectedRef(editorStateSnapshot, dataSnapshot.reference());
-		event.stopPropagation();
-	});
-	return result;
-}
-
-function changeLiteral(dataSnapshot: DataSnapshot, literal: Literal<any>, editor: HTMLElement) {
-	dataSnapshot.reference().child(valueProperty).set(literal.fromString(editor.textContent));
-}
-
-var selectedClass = "selected";
-
-function updateOptions(dataSnapshot: DataSnapshot, choice: Choice, optionList: HTMLSelectElement) {
-	optionList.innerHTML = "";
-	getOptions(choice).forEach(option => {
-		var optionElement = document.createElement("option");
-		optionElement.appendChild(document.createTextNode(option.name));
-		if (dataSnapshot.value()[ruleProperty] == option.name) {
-			optionElement.selected = true;
+		render: function(): React.ReactComponent<any, any> {
+			return createEditor(keyword, {
+				children: keyword.name
+			});
 		}
-		optionList.appendChild(optionElement);
-	});
-	$(optionList).trigger("chosen:updated");
+
+	})();
 }
 
-var selectFirstChildKey = "alt+enter";
-var selectParentKey = "alt+esc";
-var selectRootKey = "shift+alt+esc";
-var selectNextElementKeys = ["alt+right", "alt+down"];
-var selectPreviousElementKeys = ["alt+left", "alt+up"];
-var deleteKey = "del";
-var insertAfterKey = "shift+enter";
-var editKey = "f2";
+function getLiteralEditor<V>(dataRef: DataReference, literal: Literal<V>): React.ReactComponent<any, LiteralData<V>> {
+	return React.createClass({
 
-function applyTooltip(element: HTMLElement, rule: Rule): void {
-	element.title = getDescription(rule);
+		getInitialState: function(): LiteralData<V> {
+			return {
+				value: literal.defaultValue
+			};
+		},
+
+		mixins: [getFirebaseMixin(dataRef)],
+
+		render: function(): React.ReactComponent<any, any> {
+			var data = <LiteralData<V>>this.state;
+			return createEditor(literal, {
+				contentEditable: "true",
+				onKeyPress: event => {
+					if (event.key == "Enter") {
+						event.preventDefault();
+						changeLiteral(dataRef, literal, <Element>event.target);
+					}
+				},
+				onBlur: event => {
+					changeLiteral(dataRef, literal, <Element>event.target);
+				},
+				children: literal.toString(data.value) // XXX
+			});
+		}
+
+	})();
+}
+
+function getChoiceEditor(dataRef: DataReference, choice: Choice): React.ReactComponent<any, ChoiceData> {
+	return React.createClass({
+		
+		mixins: [getFirebaseMixin(dataRef)],
+
+		render: function(): React.ReactComponent<any, any> {
+			var data = <ChoiceData>this.state;
+			if (data == null) {
+				return React.DOM.span("?");
+			} else { 
+				var chosenRule = findRule(choice, data.ruleUrl);
+				return getEditor(dataRef, chosenRule);
+			}
+		}
+
+	})();
+}
+
+function getRecordEditor(dataRef: DataReference, record: Record): React.ReactComponent<any, Object> {
+	return React.createClass({
+		
+		mixins: [getFirebaseMixin(dataRef)],
+
+		render: function(): React.ReactComponent<any, any> {
+			var data = this.state;
+			var children = record.segments().map(segment =>
+				segment.match({
+					textSegment: textSegment => textNode(textSegment.text),
+					ruleSegment: ruleSegment => {
+						var fieldRef = dataRef.find(data[ruleSegment.fieldName]);
+						var fieldRule = ruleSegment.rule;
+						return getEditor(fieldRef, fieldRule);
+					}
+				})
+			);
+			return createEditor(record, {
+				children: children
+			});
+		}
+
+	})();
+}
+
+function getListEditor(dataRef: DataReference, list: List): React.ReactComponent<any, Object> {
+	return React.createClass({
+		
+		mixins: [getFirebaseMixin(dataRef)],
+		
+		render: function(): React.ReactComponent<any, any> {
+			var data = this.state;
+			var dataArray = [];
+			for (var key in data) {
+				if (!isNaN(parseInt(key))) {
+					dataArray.push(data[key]);
+				}
+			}
+			var children = [];
+			var elementRule = list.elementRule;
+			if (dataArray.length > 0) {
+				for (var i = 0; i < dataArray.length; i++) {
+					var elementRef = dataRef.find(data[i]);
+					children.push(getEditor(elementRef, elementRule));
+					children.push(textNode(list.separator));
+				}
+			} else {
+				children = [
+					textNode("(no " + owl.pluralize(list.elementRule.name) + ", "),
+					React.DOM.a({
+						href: "javascript:void(0)"
+					}, "add one"),
+					textNode(")")
+				];
+			}
+			return createEditor(list, {
+				children: children
+			});
+		}
+
+	})();
+}
+
+function getFirebaseMixin(dataRef: DataReference): React.ReactMixin<any, any> {
+	var subscription: Subscription;
+	return {
+
+		componentWillMount: function(): void {
+			subscription = dataRef.changed(data => {
+				this.setState(toObject(data)); // XXX React only accepts Object
+			});
+		},
+
+		componentWillUnmount: function(): void {
+			subscription.unsubscribe();
+		}
+
+	};
+};
+
+function createEditor(rule: Rule, attributes: React.HTMLGlobalAttributes): React.ReactComponent<any, any> {
+	var hoverClass = "hover";
+	var allAttributes: React.HTMLGlobalAttributes = {
+		className: "game-editor",
+		title: getDescription(rule),
+		tabIndex: 0,
+		onMouseOver: event => {
+			$(event.target).addClass(hoverClass);
+		},
+		onMouseOut: event => {
+			$(event.target).removeClass(hoverClass);
+		}
+	};
+	copyProperties(attributes, allAttributes);
+	return React.DOM.span(allAttributes);
+}
+
+function textNode(text: string) { // XXX React creates span for text nodes
+	return React.DOM.span({
+		style: {
+			pointerEvents: "none"
+		}
+	}, text);
+}
+
+function changeLiteral(dataRef: DataReference, literal: Literal<any>, editor: Element) {
+	dataRef.set({ value: literal.fromString(editor.textContent) });
 }
 
 function getDescription(rule: Rule): string {
@@ -236,96 +188,6 @@ function getDescription(rule: Rule): string {
 	});
 }
 
-function isSelected(dataSnapshot: DataSnapshot, editorStateSnapshot: DataSnapshot) {
-	return isSame(dataSnapshot.reference(), getSelectedRef(editorStateSnapshot));
-}
-
-function isSame(ref1: DataReference, ref2: DataReference): boolean {
-	return ref1.url() == ref2.url();
-}
-
-function getSelectedRef(editorStateSnapshot: DataSnapshot): DataReference {
-	var selectedUrl = editorStateSnapshot.child(selectedUrlId).value();
-	return editorStateSnapshot.referenceAt(selectedUrl);
-}
-
-var selectedUrlId = "selectedUrl";
-
-function setSelectedRef(editorStateSnapshot: DataSnapshot, ref: DataReference): void {
-	editorStateSnapshot.child(selectedUrlId).reference().set(ref.url());
-}
-
-function getOptions(rule: Rule): Rule[] {
-	return rule.match({
-		keyword: keyword => [keyword],
-		literal: literal => [literal],
-		list: list => [list],
-		record: record => [record],
-		choice: choice => {
-			var result: Rule[] = [];
-			choice.options().forEach(option => {
-				result = result.concat(getOptions(option));
-			});
-			return result;
-		}
-	});
-}
-
-function matches(rule: Rule, searchTerm: string): boolean {
-	return rule.match({
-		keyword: keyword => (searchTerm == "") || contains(keyword.name, searchTerm),
-		literal: literal => literal.value(searchTerm) != null,
-		record: record =>
-			(searchTerm == "") || contains(record.name, searchTerm) || record.segments().some(segment => segment.match({
-				textSegment: textSegment => contains(textSegment.text, searchTerm),
-				ruleSegment: ruleSegment => false
-			})),
-		choice: choice => false,
-		list: list => (searchTerm == "") || contains(list.elementRule.name, searchTerm)
-	});
-}
-
-function findRuleNamed(choice: Choice, name: string): Rule {
-	return choice.options().filter(option => option.name == name)[0];
-}
-
-function bindNavigation(dataSnapshot: DataSnapshot, editorStateSnapshot: DataSnapshot, keys: string[]): void {
-	// First child
-	if (isSelected(dataSnapshot, editorStateSnapshot)) {
-		bindKeyDown(selectFirstChildKey, () => {
-			setSelectedRef(editorStateSnapshot, dataSnapshot.child(keys[0]).reference());
-		});
-	}
-	// Next element
-	bindSiblingNavigation(dataSnapshot, editorStateSnapshot, keys, 1, selectNextElementKeys);
-	// Previous element
-	bindSiblingNavigation(dataSnapshot, editorStateSnapshot, keys, -1, selectPreviousElementKeys);
-}
-
-function bindSiblingNavigation(dataSnapshot: DataSnapshot, editorStateSnapshot: DataSnapshot, keys: string[], delta: number, keyCombos: string[]): void {
-	for (var i = 0; i < keys.length; i++) {
-		var siblingRef: DataReference = null;
-		var selectedKey = keys[i];
-		if (isSelected(dataSnapshot.child(selectedKey), editorStateSnapshot)) {
-			siblingRef = dataSnapshot.child(keys[modulo(i + delta, keys.length)]).reference();
-			break;
-		}
-	}
-	if (siblingRef != null) {
-		keyCombos.forEach(keyCombo => bindKeyDown(keyCombo, event => {
-			setSelectedRef(editorStateSnapshot, siblingRef);
-		}));
-	}
-}
-
-function bindKeyDown(keyCombo: string, onDownCallback: (event: Event) => void): void {
-	KeyboardJS.clear(keyCombo);
-	KeyboardJS.on(keyCombo, onDownCallback);
-}
-
-function selectParent(editorStateSnapshot: DataSnapshot, dataRootRef: DataReference): void {
-	var selectedRef = getSelectedRef(editorStateSnapshot);
-	if (!isSame(selectedRef, dataRootRef)) {
-		setSelectedRef(editorStateSnapshot, selectedRef.parent());
-	}
+function findRule(choice: Choice, url: string): Rule {
+	return choice.options().filter(option => option.url == url)[0];
 }

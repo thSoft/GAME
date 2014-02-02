@@ -17,7 +17,7 @@
   border-color: #000000;
   box-shadow: 0 0 0.06em 0.04em #000000;
 }
-.game-editor.selected {
+.game-editor:focus {
   background: rgba(208, 255, 255, 0.8);
   border-color: #a52a2a;
   box-shadow: 0 0 0.06em 0.04em #a52a2a;
@@ -26,11 +26,10 @@
   color: red;
   border: 1px dashed;
 }
-.game-editor.choice,
-.game-editor.literal {
+.game-editor.choice {
   position: relative;
 }
-.chosen-container {
+.game-editor.choice .chosen-container {
   position: absolute !important;
   left: 0;
   top: 100%;

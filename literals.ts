@@ -1,6 +1,7 @@
 class StringRule extends Literal<string> {
 	constructor() {
 		super(
+			"http://example.com/String",
 			"String",
 			data => data == null ? "" : data.toString(),
 			value => value,
@@ -13,6 +14,7 @@ class StringRule extends Literal<string> {
 class IntegerRule extends Literal<number> {
 	constructor() {
 		super(
+			"http://example.com/Integer",
 			"Integer",
 			data => {
 				var result = parseInt(data);
