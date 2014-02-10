@@ -14,10 +14,11 @@ var FirebaseReference = (function () {
         var callback = function (snapshot) {
             handler(snapshot.val());
         };
-        this.firebase.on("value", callback);
+        var firebase = this.firebase;
+        firebase.on("value", callback);
         return {
             unsubscribe: function () {
-                this.firebase.off("value", callback);
+                firebase.off("value", callback);
             }
         };
     };

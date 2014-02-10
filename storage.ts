@@ -10,3 +10,14 @@ interface DataReference {
 interface Subscription {
 	unsubscribe(): void;
 }
+
+function readOnce(dataRef: DataReference, handler: (value: any) => void): void {
+	var subscription: Subscription = null;
+	var newHandler = (value: any) => {
+		handler(value);
+		if (subscription != null) {
+			subscription.unsubscribe();
+		}
+	};
+	subscription = dataRef.changed(newHandler);
+}

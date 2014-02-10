@@ -67,10 +67,9 @@ var BooleanRule = (function (_super) {
 })(Choice);
 
 var key = "TodoList";
+var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game/" + key));
 
-//var rootRef = new FirebaseReference(new Firebase("https://thsoft.firebaseio-demo.com/game/" + key));
-var rootRef = new LocalStorageReference(key);
-
+//var rootRef = new LocalStorageReference(key);
 $(document).ready(function (_) {
     var editor = getEditor(rootRef, new TodoListRule);
     React.renderComponent(editor, document.body);

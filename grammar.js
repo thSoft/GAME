@@ -9,7 +9,7 @@ var Keyword = (function () {
     return Keyword;
 })();
 
-// Input field
+// In-place string editing
 // + custom editing mechanism
 var Literal = (function () {
     function Literal(url, name, fromString, toString, view, defaultValue) {
@@ -25,8 +25,6 @@ var Literal = (function () {
     };
     return Literal;
 })();
-
-var valueProperty = "value";
 
 // Enter: first child block
 // Escape: parent block
@@ -58,8 +56,6 @@ var Choice = (function () {
     };
     return Choice;
 })();
-
-var ruleProperty = "rule";
 
 // Tab/Shift+Tab: next/previous RuleSegment segment
 var Record = (function () {
@@ -111,18 +107,18 @@ function check(rule, data) {
         },
         choice: function (choice) {
             return choice.options().some(function (option) {
-                return (data[ruleProperty] == option.name) && check(option, data);
+                return (data.ruleUrl == option.name) && check(option, data);
             });
         }
     });
 }
 
 function ruleIs(data, rule) {
-    return (data == null) || (data[ruleProperty] == null) || (data[ruleProperty] == rule.name);
+    return (data == null) || (data.ruleUrl == null) || (data.ruleUrl == rule.url);
 }
 
 function setRule(data, rule) {
-    data[ruleProperty] = rule.name;
+    data.ruleUrl = rule.url;
 }
 
 function generate(rule) {
@@ -131,8 +127,9 @@ function generate(rule) {
             return ({});
         },
         literal: function (literal) {
-            var result = {};
-            result[valueProperty] = literal.defaultValue;
+            var result = {
+                value: literal.defaultValue
+            };
             return result;
         },
         list: function (list) {

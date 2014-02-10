@@ -15,10 +15,11 @@ class FirebaseReference implements DataReference {
 		var callback = (snapshot: IFirebaseDataSnapshot) => {
 			handler(snapshot.val());
 		};
-		this.firebase.on("value", callback);
+		var firebase = this.firebase;
+		firebase.on("value", callback);
 		return {
 			unsubscribe(): void {
-				this.firebase.off("value", callback);
+				firebase.off("value", callback);
 			}
 		};
 	}

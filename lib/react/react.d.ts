@@ -126,7 +126,7 @@ declare module React {
     
     
     interface ReactComponentFactory<P, C extends ReactComponent<P, any>> {
-        (protperties?: P, ...children: any[]): C
+        (properties?: P, ...children: any[]): C
     }
     /**
      * interface describing ReactComponentSpec
@@ -369,6 +369,7 @@ declare module React {
     interface ReactAttributes {
         key?: string;
         ref?: string;
+		children?: any[];
     }
     
     

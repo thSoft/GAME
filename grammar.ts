@@ -4,6 +4,10 @@ interface Rule {
 	name: string;
 }
 
+interface DataWithRule {
+	ruleUrl?: string
+}
+
 interface RuleCases<T> {
 	keyword(keyword: Keyword): T;
 	literal<L>(literal: Literal<L>): T;
@@ -25,7 +29,7 @@ class Keyword implements Rule {
 
 }
 
-// Input field
+// In-place string editing
 // + custom editing mechanism
 class Literal<V> implements Rule {
 
@@ -44,11 +48,9 @@ class Literal<V> implements Rule {
 
 }
 
-interface LiteralData<V> {
+interface LiteralData<V> extends DataWithRule {
 	value: V;
 }
-
-var valueProperty = "value";
 
 // Enter: first child block
 // Escape: parent block
@@ -85,12 +87,6 @@ class Choice implements Rule {
 	}
 
 }
-
-interface ChoiceData {
-	ruleUrl: string
-}
-
-var ruleProperty = "rule";
 
 // Tab/Shift+Tab: next/previous RuleSegment segment
 class Record implements Rule {
@@ -140,30 +136,31 @@ class RuleSegment implements RecordSegment {
 
 }
 
-function check(rule: Rule, data: Object): boolean {
+function check(rule: Rule, data: DataWithRule): boolean {
 	return rule.match({
 		keyword: keyword => ruleIs(data, rule),
 		literal: literal => ruleIs(data, rule),
 		record: record => ruleIs(data, rule),
 		list: list => ruleIs(data, rule),
-		choice: choice => choice.options().some(option => (data[ruleProperty] == option.name) && check(option, data))
+		choice: choice => choice.options().some(option => (data.ruleUrl == option.name) && check(option, data))
 	});
 }
 
-function ruleIs(data: Object, rule: Rule): boolean {
-	return (data == null) || (data[ruleProperty] == null) || (data[ruleProperty] == rule.name);
+function ruleIs(data: DataWithRule, rule: Rule): boolean {
+	return (data == null) || (data.ruleUrl == null) || (data.ruleUrl == rule.url);
 }
 
-function setRule(data: Object, rule: Rule): void {
-	data[ruleProperty] = rule.name;
+function setRule(data: DataWithRule, rule: Rule): void {
+	data.ruleUrl = rule.url;
 }
 
-function generate(rule: Rule): Object {
+function generate(rule: Rule): DataWithRule {
 	return rule.match({
 		keyword: keyword => ({}),
 		literal: literal => {
-			var result = {};
-			result[valueProperty] = literal.defaultValue;
+			var result: LiteralData<any> = {
+				value: literal.defaultValue
+			};
 			return result;
 		},
 		list: list => [],
