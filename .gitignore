@@ -1,8 +1,8 @@
 target/
+.cache-main
+.cache-tests
 bin/
 .project
 .classpath
 .settings/
-.cache-main
-.cache-tests
-node_modules/
+.idea/
