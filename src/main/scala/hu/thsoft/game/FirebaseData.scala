@@ -1,4 +1,4 @@
-package modeling
+package hu.thsoft.game
 
 import scala.scalajs.js
 import hu.thsoft.firebase.Firebase
@@ -93,6 +93,14 @@ object FirebaseData {
       false
     })
     children.toList
+  }
+
+  def caseNameChild(firebase: Firebase): Firebase = {
+    firebase.child("case")
+  }
+
+  def valueChild(firebase: Firebase): Firebase = {
+    firebase.child("value")
   }
 
 }

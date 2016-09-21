@@ -1,13 +1,25 @@
-package modeling
+package hu.thsoft.game.demo
 
-import scala.scalajs.js.JSApp
-import japgolly.scalajs.react.ReactElement
-import japgolly.scalajs.react.vdom.prefix_<^._
-import org.scalajs.dom.Node
 import hu.thsoft.firebase.Firebase
+import scala.scalajs.js.JSApp
 import org.scalajs.dom.document
-import japgolly.scalajs.react.ReactDOM
-import monix.execution.Scheduler.Implicits.global
+import hu.thsoft.game.BooleanData
+import hu.thsoft.game.BooleanRule
+import hu.thsoft.game.ChoiceData
+import hu.thsoft.game.ChoiceRule
+import hu.thsoft.game.Element
+import hu.thsoft.game.ListRule
+import hu.thsoft.game.NumberData
+import hu.thsoft.game.NumberRule
+import hu.thsoft.game.RecordData
+import hu.thsoft.game.StringData
+import hu.thsoft.game.StringRule
+import hu.thsoft.game.Case
+import hu.thsoft.game.ReferenceRule
+import hu.thsoft.game.RecordRule
+import hu.thsoft.game.RuleCase
+import hu.thsoft.game.ListData
+import hu.thsoft.game.ReferenceData
 
 object App extends JSApp {
 
@@ -61,8 +73,8 @@ class MyChoiceRule(choiceData: MyChoiceData) extends ChoiceRule[MyChoiceData](ch
 
   def getCases = {
     Seq(
-      new RuleCase(choiceData.case1, (booleanData: BooleanData) => new BooleanRule(booleanData)),
-      new RuleCase(choiceData.case2, (stringData: StringData) => new StringRule(stringData))
+      RuleCase(choiceData.case1, (booleanData: BooleanData) => new BooleanRule(booleanData)),
+      RuleCase(choiceData.case2, (stringData: StringData) => new StringRule(stringData))
     )
   }
 

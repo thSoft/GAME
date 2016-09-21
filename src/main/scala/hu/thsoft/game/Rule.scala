@@ -1,4 +1,4 @@
-package modeling
+package hu.thsoft.game
 
 import org.scalajs.dom.raw.Node
 
@@ -10,6 +10,7 @@ import monix.execution.Scheduler.Implicits.global
 import monix.reactive.Observable
 import scalaz.std.list._
 import upickle.Js
+import japgolly.scalajs.react.Callback
 
 abstract class Rule {
 
@@ -41,6 +42,8 @@ abstract class AtomicRule[D <: AtomicData[V], V](data: D) extends Rule {
 
   def observeValue: Firebase => Observable[Stored[V]]
 
+  def getElement(value: V): ReactElement
+
   def observe = {
     observeValue(data.firebase).map(stored => {
       stored.value.fold(
@@ -48,7 +51,7 @@ abstract class AtomicRule[D <: AtomicData[V], V](data: D) extends Rule {
           viewInvalid(stored, invalid)
         },
         value => {
-          <.span(value.toString())
+          getElement(value)
         }
       )
     })
@@ -60,17 +63,33 @@ class NumberRule(numberData: NumberData) extends AtomicRule[NumberData, Double](
 
   def observeValue = FirebaseData.observeDouble
 
+  def getElement(value: Double): ReactElement = {
+    <.span(value.toString())
+  }
+
 }
 
 class StringRule(stringData: StringData) extends AtomicRule[StringData, String](stringData) {
 
   def observeValue = FirebaseData.observeString
 
+  def getElement(value: String): ReactElement = {
+    <.span(value)
+  }
+
 }
 
 class BooleanRule(booleanData: BooleanData) extends AtomicRule[BooleanData, Boolean](booleanData) {
 
   def observeValue = FirebaseData.observeBoolean
+
+  def getElement(value: Boolean): ReactElement = {
+    <.input(
+      ^.`type` := "checkbox",
+      ^.checked := value,
+      ^.onChange --> Callback(booleanData.apply(new BooleanChange(!value)))
+    )
+  }
 
 }
 
@@ -127,16 +146,16 @@ abstract class ChoiceRule[D <: ChoiceData](choiceData: D) extends Rule {
   def getCases: Seq[RuleCase[_]]
 
   def observe = {
-    val typeNameObservable = FirebaseData.observeString(choiceData.firebase.child("type"))
-    typeNameObservable.switchMap(storedTypeName => {
-      storedTypeName.value.fold(
+    val caseNameObservable = FirebaseData.observeString(FirebaseData.caseNameChild(choiceData.firebase))
+    caseNameObservable.switchMap(storedCaseName => {
+      storedCaseName.value.fold(
         invalid => {
-          Observable.pure(viewInvalid(storedTypeName, invalid))
+          Observable.pure(viewInvalid(storedCaseName, invalid))
         },
         typeName => {
           getCases.find(_.dataCase.name == typeName).fold({
             val invalid = Invalid(Js.Str(typeName), getCases.map(_.dataCase.name).mkString(" or "), new Exception(s"unknown $typeName"))
-            Observable.pure(viewInvalid(storedTypeName, invalid))
+            Observable.pure(viewInvalid(storedCaseName, invalid))
           })(ruleCase => {
             ruleCase.toRule(choiceData).observe
           })
@@ -147,8 +166,8 @@ abstract class ChoiceRule[D <: ChoiceData](choiceData: D) extends Rule {
 
 }
 
-class RuleCase[D <: Data](val dataCase: Case[D], val makeRule: D => Rule) {
+case class RuleCase[D <: Data](dataCase: Case[D], makeRule: D => Rule) {
   def toRule(choiceData: Data): Rule = {
-    makeRule(dataCase.makeData(choiceData.firebase.child("value")))
+    makeRule(dataCase.makeData(FirebaseData.valueChild(choiceData.firebase)))
   }
 }
