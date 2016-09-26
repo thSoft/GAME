@@ -171,3 +171,22 @@ case class RuleCase[D <: Data](dataCase: Case[D], makeRule: D => Rule) {
     makeRule(dataCase.makeData(FirebaseData.valueChild(choiceData.firebase)))
   }
 }
+
+class ConditionalRule(conditionData: BooleanData, trueRule: Rule, falseRule: Rule) extends Rule {
+
+  def observe: Observable[ReactElement] = {
+    val conditionObservable = FirebaseData.observeBoolean(conditionData.firebase)
+    conditionObservable.switchMap(storedCondition => {
+      storedCondition.value.fold(
+        invalid => {
+          Observable.pure(viewInvalid(storedCondition, invalid))
+        },
+        condition => {
+          val rule = if (condition) trueRule else falseRule
+          rule.observe
+        }
+      )
+    })
+  }
+
+}
