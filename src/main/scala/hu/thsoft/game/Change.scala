@@ -13,6 +13,17 @@ abstract class Change[D <: Data] {
 
 }
 
+class CopyChange[D <: Data](from: D) extends Change[D] {
+
+  def apply(firebase: Firebase) {
+    from.firebase.once("value", (snapshot: FirebaseDataSnapshot) => {
+      firebase.set(snapshot.`val`)
+      ()
+    })
+  }
+
+}
+
 abstract class AtomicChange[Value](value: Value) extends Change[AtomicData[Value]] {
 
   def writeJson: Value => Js.Value
