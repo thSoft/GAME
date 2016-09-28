@@ -20,13 +20,26 @@ import hu.thsoft.game.RecordRule
 import hu.thsoft.game.RuleCase
 import hu.thsoft.game.ListData
 import hu.thsoft.game.ReferenceData
+import hu.thsoft.game.cells._
+import hu.thsoft.game.cells.Cell
+import hu.thsoft.game.Data
+import hu.thsoft.game.InvalidHandler
+import hu.thsoft.game.Invalid
+import hu.thsoft.game.Stored
+import japgolly.scalajs.react.vdom.prefix_<^._
+import hu.thsoft.game.ChildrenHandler
+import hu.thsoft.game.StringChange
+import japgolly.scalajs.react.Callback
+import scalacss.Defaults._
+import scalacss.ScalaCssReact._
 
 object App extends JSApp {
 
   def main() {
     val container = document.createElement("div")
     document.body.appendChild(container)
-    new MyRecordRule(new MyRecordData(new Firebase("https://thsoft.firebaseio.com/DUX-POC/test/record"))).run(container)
+    new MyRecordRule(new MyRecordData(new Firebase("https://thsoft.firebaseio.com/DUX-POC/test/record"))).run(container, Render.apply, None)
+    List(Styles).foreach(_.addToDocument())
   }
 
 }
@@ -42,39 +55,111 @@ class MyChoiceData(firebase: Firebase) extends ChoiceData(firebase) {
   lazy val case2 = new Case("case2", new StringData(_))
 }
 
-class MyRecordRule(recordData: MyRecordData) extends RecordRule(recordData) {
+object DataCell {
+
+  def apply(firebase: Firebase, content: CellContent[String]): Cell[String] = {
+    Cell(firebase.toString(), content)
+  }
+
+}
+
+trait MyInvalidHandler extends InvalidHandler[Cell[String]] {
+
+  def viewInvalid(stored: Stored[_], invalid: Invalid): Cell[String] = {
+    DataCell(
+      stored.firebase,
+      atomicContent(
+        <.a(
+          "⚠",
+          ^.href := stored.firebase.toString(),
+          ^.target := "_blank",
+          ^.title := s"Expected ${invalid.expectedTypeName} but got ${invalid.json}"
+        ),
+        ""
+      )
+    )
+  }
+
+}
+
+trait MyChildrenHandler  extends ChildrenHandler[Cell[String]] {
+
+  def combine(data: Data, children: Seq[Cell[String]]): Cell[String] = {
+    DataCell(data.firebase, compositeContent(children))
+  }
+
+}
+
+class MyElement(text: String) extends Element[Cell[String]](text) {
+
+  def view = Cell("", atomicContent(text))
+
+}
+
+class MyNumberRule(numberData: NumberData) extends NumberRule[Cell[String]](numberData) with MyInvalidHandler {
+
+  def view(double: Double) = DataCell(numberData.firebase, atomicContent(double.toString()))
+
+}
+
+class MyStringRule(stringData: StringData) extends StringRule[Cell[String]](stringData) with MyInvalidHandler {
+
+  def view(string: String) = {
+    val getCommands = (input: String) =>
+      List(
+        Command[String](
+          text = input,
+          description = s"Change to $input",
+          callback = navigator => Callback {
+            stringData.apply(new StringChange(input))
+            navigator.navigateRight
+          }
+        )
+      )
+    DataCell(stringData.firebase, atomicContent[String](string).copy(menu = Some(MenuContent(getCommands))))
+  }
+
+}
+
+class MyBooleanRule(booleanData: BooleanData) extends BooleanRule[Cell[String]](booleanData) with MyInvalidHandler {
+
+  def view(boolean: Boolean) = DataCell(booleanData.firebase, atomicContent(boolean.toString()))
+
+}
+
+class MyRecordRule(recordData: MyRecordData) extends RecordRule[MyRecordData, Cell[String]](recordData) with MyChildrenHandler {
 
   def getRules = {
     Seq(
-      new Element("number reference: "),
-      new ReferenceRule(recordData.numberReference, (numberData: NumberData) => new NumberRule(numberData)),
-      new Element("; list: "),
+      new MyElement("number reference: "),
+      new ReferenceRule(recordData.numberReference, (numberData: NumberData) => new MyNumberRule(numberData)),
+      new MyElement("; list: "),
       new MyListRule(recordData.list),
-      new Element("; choice: "),
+      new MyElement("; choice: "),
       new MyChoiceRule(recordData.choice)
     )
   }
 
 }
 
-class MyListRule(listData: ListData[StringData]) extends ListRule[StringData](listData) {
+class MyListRule(listData: ListData[StringData]) extends ListRule[StringData, Cell[String]](listData) with MyChildrenHandler {
 
   def getElementRule(elementData: StringData) = {
-    new StringRule(elementData)
+    new MyStringRule(elementData)
   }
 
   def separator = {
-    new Element(", ")
+    new MyElement(", ")
   }
 
 }
 
-class MyChoiceRule(choiceData: MyChoiceData) extends ChoiceRule[MyChoiceData](choiceData) {
+class MyChoiceRule(choiceData: MyChoiceData) extends ChoiceRule[MyChoiceData, Cell[String]](choiceData) with MyInvalidHandler {
 
   def getCases = {
     Seq(
-      RuleCase(choiceData.case1, (booleanData: BooleanData) => new BooleanRule(booleanData)),
-      RuleCase(choiceData.case2, (stringData: StringData) => new StringRule(stringData))
+      RuleCase(choiceData.case1, (booleanData: BooleanData) => new MyBooleanRule(booleanData)),
+      RuleCase(choiceData.case2, (stringData: StringData) => new MyStringRule(stringData))
     )
   }
 

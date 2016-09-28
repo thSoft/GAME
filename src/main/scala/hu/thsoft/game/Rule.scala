@@ -11,38 +11,44 @@ import monix.reactive.Observable
 import scalaz.std.list._
 import upickle.Js
 import japgolly.scalajs.react.Callback
+import monix.reactive.subjects.BehaviorSubject
+import monix.reactive.Observer
 
-abstract class Rule {
+trait Rule[ViewModel] {
 
-  def observe: Observable[ReactElement]
+  def observe: Observable[ViewModel]
 
-  def run(container: Node) = {
-    observe.foreach(element => ReactDOM.render(element, container))
-  }
-
-  def viewInvalid(stored: Stored[_], invalid: Invalid): ReactElement = {
-    <.a(
-      "⚠",
-      ^.href := stored.firebase.toString(),
-      ^.target := "_blank",
-      ^.title := s"Expected ${invalid.expectedTypeName} but got ${invalid.json}"
+  def run[State](container: Node, render: (ViewModel, State, Observer[State]) => ReactElement, initialState: => State) = {
+    val state = BehaviorSubject[State](initialState)
+    val view = observe.combineLatestMap(state)((currentViewModel, currentState) =>
+      render(currentViewModel, currentState, state)
     )
+    view.foreach(element => ReactDOM.render(element, container))
   }
+
 }
 
-class Element(text: String) extends Rule {
+trait InvalidHandler[ViewModel] {
+
+    def viewInvalid(stored: Stored[_], invalid: Invalid): ViewModel
+
+}
+
+abstract class Element[ViewModel](text: String) extends Rule[ViewModel] {
+
+  def view: ViewModel
 
   def observe = {
-    Observable.pure(<.span(text))
+    Observable.pure(view)
   }
 
 }
 
-abstract class AtomicRule[D <: AtomicData[V], V](data: D) extends Rule {
+abstract class AtomicRule[D <: AtomicData[V], V, ViewModel](data: D) extends Rule[ViewModel] with InvalidHandler[ViewModel] {
 
   def observeValue: Firebase => Observable[Stored[V]]
 
-  def getElement(value: V): ReactElement
+  def view(value: V): ViewModel
 
   def observe = {
     observeValue(data.firebase).map(stored => {
@@ -51,7 +57,7 @@ abstract class AtomicRule[D <: AtomicData[V], V](data: D) extends Rule {
           viewInvalid(stored, invalid)
         },
         value => {
-          getElement(value)
+          view(value)
         }
       )
     })
@@ -59,41 +65,25 @@ abstract class AtomicRule[D <: AtomicData[V], V](data: D) extends Rule {
 
 }
 
-class NumberRule(numberData: NumberData) extends AtomicRule[NumberData, Double](numberData) {
+abstract class NumberRule[ViewModel](numberData: NumberData) extends AtomicRule[NumberData, Double, ViewModel](numberData) {
 
   def observeValue = FirebaseData.observeDouble
 
-  def getElement(value: Double): ReactElement = {
-    <.span(value.toString())
-  }
-
 }
 
-class StringRule(stringData: StringData) extends AtomicRule[StringData, String](stringData) {
+abstract class StringRule[ViewModel](stringData: StringData) extends AtomicRule[StringData, String, ViewModel](stringData) {
 
   def observeValue = FirebaseData.observeString
 
-  def getElement(value: String): ReactElement = {
-    <.span(value)
-  }
-
 }
 
-class BooleanRule(booleanData: BooleanData) extends AtomicRule[BooleanData, Boolean](booleanData) {
+abstract class BooleanRule[ViewModel](booleanData: BooleanData) extends AtomicRule[BooleanData, Boolean, ViewModel](booleanData) {
 
   def observeValue = FirebaseData.observeBoolean
 
-  def getElement(value: Boolean): ReactElement = {
-    <.input(
-      ^.`type` := "checkbox",
-      ^.checked := value,
-      ^.onChange --> Callback(booleanData.apply(new BooleanChange(!value)))
-    )
-  }
-
 }
 
-class ReferenceRule[R <: Data](referenceData: ReferenceData[R], getRule: R => Rule) extends Rule {
+class ReferenceRule[R <: Data, ViewModel](referenceData: ReferenceData[R], getRule: R => Rule[ViewModel]) extends Rule[ViewModel] {
 
   def observe = {
     val urlObservable = FirebaseData.observeString(referenceData.firebase)
@@ -111,11 +101,17 @@ class ReferenceRule[R <: Data](referenceData: ReferenceData[R], getRule: R => Ru
 
 }
 
-abstract class ListRule[E <: Data](listData: ListData[E]) extends Rule {
+trait ChildrenHandler[ViewModel] {
 
-  def getElementRule(elementData: E): Rule
+  def combine(data: Data, children: Seq[ViewModel]): ViewModel
 
-  def separator: Rule
+}
+
+abstract class ListRule[E <: Data, ViewModel](listData: ListData[E]) extends Rule[ViewModel] with ChildrenHandler[ViewModel] {
+
+  def getElementRule(elementData: E): Rule[ViewModel]
+
+  def separator: Rule[ViewModel]
 
   def observe = {
     val listObservable = FirebaseData.observeRaw(listData.firebase)
@@ -124,26 +120,26 @@ abstract class ListRule[E <: Data](listData: ListData[E]) extends Rule {
       val children = intersperse(childFirebases.map(childFirebase => {
         getElementRule(listData.getElementData(childFirebase)).observe
       }), separator.observe)
-      Observable.combineLatestList(children:_*).map(<.span(_))
+      Observable.combineLatestList(children:_*).map(combine(listData, _))
     })
   }
 
 }
 
-abstract class RecordRule[D <: RecordData](recordData: D) extends Rule {
+abstract class RecordRule[D <: RecordData, ViewModel](recordData: D) extends Rule[ViewModel] with ChildrenHandler[ViewModel] {
 
-  def getRules: Seq[Rule]
+  def getRules: Seq[Rule[ViewModel]]
 
   def observe = {
     val children = getRules.map(_.observe)
-    Observable.combineLatestList(children:_*).map(<.span(_))
+    Observable.combineLatestList(children:_*).map(combine(recordData, _))
   }
 
 }
 
-abstract class ChoiceRule[D <: ChoiceData](choiceData: D) extends Rule {
+abstract class ChoiceRule[D <: ChoiceData, ViewModel](choiceData: D) extends Rule[ViewModel] with InvalidHandler[ViewModel] {
 
-  def getCases: Seq[RuleCase[_]]
+  def getCases: Seq[RuleCase[_, ViewModel]]
 
   def observe = {
     val caseNameObservable = FirebaseData.observeString(FirebaseData.caseNameChild(choiceData.firebase))
@@ -166,15 +162,15 @@ abstract class ChoiceRule[D <: ChoiceData](choiceData: D) extends Rule {
 
 }
 
-case class RuleCase[D <: Data](dataCase: Case[D], makeRule: D => Rule) {
-  def toRule(choiceData: Data): Rule = {
+case class RuleCase[D <: Data, ViewModel](dataCase: Case[D], makeRule: D => Rule[ViewModel]) {
+  def toRule(choiceData: Data): Rule[ViewModel] = {
     makeRule(dataCase.makeData(FirebaseData.valueChild(choiceData.firebase)))
   }
 }
 
-class ConditionalRule(conditionData: BooleanData, trueRule: Rule, falseRule: Rule) extends Rule {
+abstract class ConditionalRule[ViewModel](conditionData: BooleanData, trueRule: Rule[ViewModel], falseRule: Rule[ViewModel]) extends Rule[ViewModel] with InvalidHandler[ViewModel] {
 
-  def observe: Observable[ReactElement] = {
+  def observe = {
     val conditionObservable = FirebaseData.observeBoolean(conditionData.firebase)
     conditionObservable.switchMap(storedCondition => {
       storedCondition.value.fold(

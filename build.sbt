@@ -6,6 +6,8 @@ scalaVersion := "2.11.8"
 
 libraryDependencies ++= Seq(
   "com.github.japgolly.scalajs-react" %%% "core" % "0.10.4",
+  "com.github.japgolly.scalacss" %%% "core" % "0.4.0",
+  "com.github.japgolly.scalacss" %%% "ext-react" % "0.4.0",
   "hu.thsoft" %%% "firebase-scalajs" % "2.4.1",
   "io.monix" %%% "monix" % "2.0.1",
   "com.lihaoyi" %%% "upickle" % "0.3.8",
