@@ -32,6 +32,11 @@ import hu.thsoft.game.StringChange
 import japgolly.scalajs.react.Callback
 import scalacss.Defaults._
 import scalacss.ScalaCssReact._
+import hu.thsoft.game.AtomicData
+import hu.thsoft.game.AtomicChange
+import hu.thsoft.game.NumberChange
+import scala.util.Try
+import hu.thsoft.game.BooleanChange
 
 object App extends JSApp {
 
@@ -61,6 +66,21 @@ object DataCell {
     Cell(firebase.toString(), content)
   }
 
+  def atomic[V](atomicData: AtomicData[V], text: String, getChange: String => AtomicChange[V]): Cell[String] = {
+    val getCommands = (input: String) =>
+      Try { getChange(input) }.toOption.toList.map(change =>
+        Command[String](
+          text = input,
+          description = s"Change to $input",
+          callback = navigator => Callback {
+            atomicData.apply(change)
+            navigator.navigateRight
+          }
+        )
+      )
+    DataCell(atomicData.firebase, atomicContent[String](text).copy(menu = Some(MenuContent(getCommands))))
+  }
+
 }
 
 trait MyInvalidHandler extends InvalidHandler[Cell[String]] {
@@ -82,7 +102,7 @@ trait MyInvalidHandler extends InvalidHandler[Cell[String]] {
 
 }
 
-trait MyChildrenHandler  extends ChildrenHandler[Cell[String]] {
+trait MyChildrenHandler extends ChildrenHandler[Cell[String]] {
 
   def combine(data: Data, children: Seq[Cell[String]]): Cell[String] = {
     DataCell(data.firebase, compositeContent(children))
@@ -98,32 +118,25 @@ class MyElement(text: String) extends Element[Cell[String]](text) {
 
 class MyNumberRule(numberData: NumberData) extends NumberRule[Cell[String]](numberData) with MyInvalidHandler {
 
-  def view(double: Double) = DataCell(numberData.firebase, atomicContent(double.toString()))
+  def view(double: Double) = {
+    DataCell.atomic(numberData, double.toString(), input => new NumberChange(input.toDouble))
+  }
 
 }
 
 class MyStringRule(stringData: StringData) extends StringRule[Cell[String]](stringData) with MyInvalidHandler {
 
   def view(string: String) = {
-    val getCommands = (input: String) =>
-      List(
-        Command[String](
-          text = input,
-          description = s"Change to $input",
-          callback = navigator => Callback {
-            stringData.apply(new StringChange(input))
-            navigator.navigateRight
-          }
-        )
-      )
-    DataCell(stringData.firebase, atomicContent[String](string).copy(menu = Some(MenuContent(getCommands))))
+    DataCell.atomic(stringData, string, input => new StringChange(input))
   }
 
 }
 
 class MyBooleanRule(booleanData: BooleanData) extends BooleanRule[Cell[String]](booleanData) with MyInvalidHandler {
 
-  def view(boolean: Boolean) = DataCell(booleanData.firebase, atomicContent(boolean.toString()))
+  def view(boolean: Boolean) = {
+    DataCell.atomic(booleanData, boolean.toString(), input => new BooleanChange(input.toBoolean))
+  }
 
 }
 
